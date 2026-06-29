@@ -4,3 +4,4 @@ faces/trainer.yml
 faces/labels.txt
 *.db
 *.csv
+app.py
