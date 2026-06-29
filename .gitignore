@@ -1,0 +1,6 @@
+__pycache__/
+faces/*.jpg
+faces/trainer.yml
+faces/labels.txt
+*.db
+*.csv
