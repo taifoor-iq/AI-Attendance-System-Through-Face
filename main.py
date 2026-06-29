@@ -45,6 +45,34 @@ def init_db():
 
 init_db()
 
+# Student Routes
+@app.route("/api/student/register", methods=["POST"])
+def register_student():
+    data   = request.json or {}
+    roll   = data.get("roll_no","").strip()
+    name   = data.get("name","").strip()
+    course = data.get("course","").strip()
+    if not roll or not name or not course:
+        return jsonify({"success":False,"message":"All fields required!"}), 400
+    conn = get_db()
+    try:
+        if conn.execute("SELECT id FROM students WHERE roll_no=?",(roll,)).fetchone():
+            return jsonify({"success":False,"message":f"{roll} already registered!"})
+        conn.execute("INSERT INTO students(roll_no,name,course) VALUES(?,?,?)",(roll,name,course))
+        conn.commit()
+        return jsonify({"success":True,"message":f"{name} ({roll}) registered!"})
+    finally:
+        conn.close()
+
+@app.route("/api/students")
+def list_students():
+    conn = get_db()
+    try:
+        rows = conn.execute("SELECT * FROM students ORDER BY name").fetchall()
+        return jsonify({"success":True,"students":[dict(r) for r in rows]})
+    finally:
+        conn.close()
+
 @app.route("/")
 def home():
     return "AI Attendance System - Backend Running"
