@@ -683,9 +683,7 @@ def _do_capture(roll_no, student_name):
             faces = CASCADE.detectMultiScale(gray, 1.1, 5)
             for (x,y,w,h) in faces:
                 face_img = cv2.resize(gray[y:y+h,x:x+w],(200,200))
-                face_img = cv2.resize(gray[y:y+h,x:x+w],(200,200))
-                face_img = cv2.equalizeHist(face_img)    # yeh add karo
-                cv2.imwrite(f"faces/{roll_no}_{count}.jpg", face_img)
+                face_img = cv2.equalizeHist(face_img)
                 cv2.imwrite(f"faces/{roll_no}_{count}.jpg", face_img)
                 count += 1
                 cv2.rectangle(frame,(x,y),(x+w,y+h),(0,255,0),2)
