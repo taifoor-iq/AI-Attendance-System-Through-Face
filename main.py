@@ -72,6 +72,31 @@ def list_students():
         return jsonify({"success":True,"students":[dict(r) for r in rows]})
     finally:
         conn.close()
+# Subject Routes
+@app.route("/api/subject/add", methods=["POST"])
+def add_subject():
+    data = request.json or {}
+    name = data.get("subject_name","").strip()
+    if not name:
+        return jsonify({"success":False,"message":"Subject name required!"}), 400
+    conn = get_db()
+    try:
+        if conn.execute("SELECT id FROM subjects WHERE subject_name=?",(name,)).fetchone():
+            return jsonify({"success":False,"message":f"'{name}' already exists!"})
+        conn.execute("INSERT INTO subjects(subject_name) VALUES(?)",(name,))
+        conn.commit()
+        return jsonify({"success":True,"message":f"Subject '{name}' added!"})
+    finally:
+        conn.close()
+
+@app.route("/api/subjects")
+def list_subjects():
+    conn = get_db()
+    try:
+        rows = conn.execute("SELECT * FROM subjects ORDER BY subject_name").fetchall()
+        return jsonify({"success":True,"subjects":[dict(r) for r in rows]})
+    finally:
+        conn.close()
 
 @app.route("/")
 def home():
