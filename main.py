@@ -89,12 +89,51 @@ def add_subject():
     finally:
         conn.close()
 
-@app.route("/api/subjects")
 def list_subjects():
     conn = get_db()
     try:
         rows = conn.execute("SELECT * FROM subjects ORDER BY subject_name").fetchall()
         return jsonify({"success":True,"subjects":[dict(r) for r in rows]})
+    finally:
+        conn.close()
+
+# Enrollment Routes
+@app.route("/api/enroll", methods=["POST"])
+def enroll_student():
+    # Enrollment Routes
+@app.route("/api/enroll", methods=["POST"])
+def enroll_student():
+    data = request.json or {}
+    roll = data.get("roll_no","").strip()
+    sid  = data.get("subject_id")
+    if not roll or not sid:
+        return jsonify({"success":False,"message":"roll_no aur subject_id required!"}), 400
+    conn = get_db()
+    try:
+        student = conn.execute("SELECT id FROM students WHERE roll_no=?",(roll,)).fetchone()
+        if not student:
+            return jsonify({"success":False,"message":f"{roll} nahi mila!"})
+        subject = conn.execute("SELECT id,subject_name FROM subjects WHERE id=?",(sid,)).fetchone()
+        if not subject:
+            return jsonify({"success":False,"message":"Subject nahi mila!"})
+        if conn.execute("SELECT id FROM enrollments WHERE student_id=? AND subject_id=?",(student["id"],sid)).fetchone():
+            return jsonify({"success":False,"message":f"{roll} already enrolled!"})
+        conn.execute("INSERT INTO enrollments(student_id,subject_id) VALUES(?,?)",(student["id"],sid))
+        conn.commit()
+        return jsonify({"success":True,"message":f"{roll} enrolled in '{subject['subject_name']}'"})
+    finally:
+        conn.close()
+
+@app.route("/api/enrollments/<int:subject_id>")
+def list_enrollments(subject_id):
+    conn = get_db()
+    try:
+        rows = conn.execute("""
+            SELECT s.id,s.roll_no,s.name,s.course
+            FROM students s JOIN enrollments e ON e.student_id=s.id
+            WHERE e.subject_id=? ORDER BY s.name
+        """,(subject_id,)).fetchall()
+        return jsonify({"success":True,"students":[dict(r) for r in rows]})
     finally:
         conn.close()
 
