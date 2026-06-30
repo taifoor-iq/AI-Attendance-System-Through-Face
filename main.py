@@ -88,7 +88,7 @@ def add_subject():
         return jsonify({"success":True,"message":f"Subject '{name}' added!"})
     finally:
         conn.close()
-
+@app.route("/api/subjects")
 def list_subjects():
     conn = get_db()
     try:
@@ -97,9 +97,6 @@ def list_subjects():
     finally:
         conn.close()
 
-# Enrollment Routes
-@app.route("/api/enroll", methods=["POST"])
-def enroll_student():
     # Enrollment Routes
 @app.route("/api/enroll", methods=["POST"])
 def enroll_student():
