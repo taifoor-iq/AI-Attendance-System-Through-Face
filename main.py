@@ -1,6 +1,11 @@
 import os
 import sqlite3
 from flask import Flask, jsonify, request
+import cv2
+import numpy as np
+import threading
+import queue
+from datetime import date, datetime
 
 app = Flask(__name__)
 
@@ -44,6 +49,58 @@ def init_db():
     conn.close()
 
 init_db()
+os.makedirs("faces", exist_ok=True)
+
+CASCADE = cv2.CascadeClassifier(
+    cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+)
+
+_cam_queue = queue.Queue()
+
+def run_camera_task(func):
+    result_q = queue.Queue()
+    _cam_queue.put((func, result_q))
+    return result_q.get(timeout=180)
+
+def _do_capture(roll_no, student_name):
+    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    if not cap.isOpened():
+        return {"success":False,"message":"Camera nahi mila!"}
+    count = 0
+    try:
+        while count < 30:
+            ret, frame = cap.read()
+            if not ret: continue
+            gray  = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            faces = CASCADE.detectMultiScale(gray, 1.1, 5)
+            for (x,y,w,h) in faces:
+                face_img = cv2.resize(gray[y:y+h,x:x+w],(200,200))
+                face_img = cv2.equalizeHist(face_img)
+                cv2.imwrite(f"faces/{roll_no}_{count}.jpg", face_img)
+                count += 1
+                cv2.rectangle(frame,(x,y),(x+w,y+h),(0,255,0),2)
+            cv2.putText(frame,f"Capturing: {count}/30",(10,30),cv2.FONT_HERSHEY_SIMPLEX,0.8,(0,255,0),2)
+            cv2.putText(frame,student_name,(10,60),cv2.FONT_HERSHEY_SIMPLEX,0.6,(255,255,255),2)
+            cv2.imshow("Face Capture",frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'): break
+    finally:
+        cap.release()
+        cv2.destroyAllWindows()
+    if count > 0:
+        return {"success":True,"message":f"{count} images captured for {roll_no}!"}
+    return {"success":False,"message":"Face detect nahi hua!"}
+
+@app.route("/api/face/capture/<roll_no>")
+def capture_face(roll_no):
+    conn = get_db()
+    try:
+        student = conn.execute("SELECT * FROM students WHERE roll_no=?",(roll_no,)).fetchone()
+    finally:
+        conn.close()
+    if not student:
+        return jsonify({"success":False,"message":f"{roll_no} nahi mila!"})
+    result = run_camera_task(lambda: _do_capture(roll_no, student["name"]))
+    return jsonify(result)
 
 # Student Routes
 @app.route("/api/student/register", methods=["POST"])
