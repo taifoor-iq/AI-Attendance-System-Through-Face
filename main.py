@@ -101,6 +101,34 @@ def capture_face(roll_no):
         return jsonify({"success":False,"message":f"{roll_no} nahi mila!"})
     result = run_camera_task(lambda: _do_capture(roll_no, student["name"]))
     return jsonify(result)
+@app.route("/api/face/train")
+def train_model():
+    conn = get_db()
+    try:
+        students = conn.execute("SELECT * FROM students").fetchall()
+    finally:
+        conn.close()
+    if not students:
+        return jsonify({"success":False,"message":"Koi student nahi!"})
+    faces, labels, label_map = [], [], {}
+    for idx, s in enumerate(students):
+        roll = s["roll_no"]
+        label_map[idx] = roll
+        for f in os.listdir("faces"):
+            if f.startswith(roll+"_") and f.endswith(".jpg"):
+                img = cv2.imread(os.path.join("faces",f), cv2.IMREAD_GRAYSCALE)
+                if img is not None:
+                    faces.append(cv2.resize(img,(200,200)))
+                    labels.append(idx)
+    if not faces:
+        return jsonify({"success":False,"message":"Pehle faces capture karo!"})
+    model = cv2.face.LBPHFaceRecognizer_create()
+    model.train(faces, np.array(labels))
+    model.save("faces/trainer.yml")
+    with open("faces/labels.txt","w") as f:
+        for k,v in label_map.items():
+            f.write(f"{k},{v}\n")
+    return jsonify({"success":True,"message":f"Model trained! {len(faces)} images, {len(students)} students."})
 
 # Student Routes
 @app.route("/api/student/register", methods=["POST"])
@@ -154,7 +182,7 @@ def list_subjects():
     finally:
         conn.close()
 
-    # Enrollment Routes
+# Enrollment Routes
 @app.route("/api/enroll", methods=["POST"])
 def enroll_student():
     data = request.json or {}
